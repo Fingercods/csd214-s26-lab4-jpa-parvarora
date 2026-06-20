@@ -6,7 +6,7 @@ import com.github.javafaker.Faker;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
-
+import java.util.UUID;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
@@ -20,6 +20,7 @@ public class App {
     public void run() {
         populate();
         int choice = 0;
+
         while (choice != 99) {
             System.out.println("\n***********************");
             System.out.println(" 1. Add Items (JPA Persist)");
@@ -57,24 +58,27 @@ public class App {
                     listAny();
                     break;
                 case 99:
-                    // Exit
                     break;
                 default:
                     System.out.println("Invalid choice.");
             }
         }
+
         em.close();
         emf.close();
     }
 
     public void addItem() {
         int choice = 0;
+
         while (choice != 99) {
             System.out.println("\nAdd an item\n");
             System.out.println("1. Add Book");
             System.out.println("2. Add Magazine");
             System.out.println("3. Add DiscMag");
             System.out.println("4. Add Ticket");
+            System.out.println("5. Add Gaming Mouse");
+            System.out.println("6. Add Gaming Keyboard");
             System.out.println("99. Exit");
 
             try {
@@ -88,12 +92,29 @@ public class App {
             if (choice == 99) return;
 
             Editable item = null;
-            switch(choice) {
-                case 1: item = new Book(); break;
-                case 2: item = new Magazine(); break;
-                case 3: item = new DiscMag(); break;
-                case 4: item = new Ticket(); break;
-                default: System.out.println("Invalid selection."); continue;
+
+            switch (choice) {
+                case 1:
+                    item = new Book();
+                    break;
+                case 2:
+                    item = new Magazine();
+                    break;
+                case 3:
+                    item = new DiscMag();
+                    break;
+                case 4:
+                    item = new Ticket();
+                    break;
+                case 5:
+                    item = new GamingMouse();
+                    break;
+                case 6:
+                    item = new GamingKeyboard();
+                    break;
+                default:
+                    System.out.println("Invalid selection.");
+                    continue;
             }
 
             item.initialize(this.input);
@@ -103,6 +124,7 @@ public class App {
 
     private void saveToDb(Editable item) {
         ProductEntity entity = null;
+
         if (item instanceof Book) {
             entity = ((Book) item).toEntity();
         } else if (item instanceof DiscMag) {
@@ -111,6 +133,10 @@ public class App {
             entity = ((Magazine) item).toEntity();
         } else if (item instanceof Ticket) {
             entity = ((Ticket) item).toEntity();
+        } else if (item instanceof GamingMouse) {
+            entity = ((GamingMouse) item).toEntity();
+        } else if (item instanceof GamingKeyboard) {
+            entity = ((GamingKeyboard) item).toEntity();
         }
 
         if (entity != null) {
@@ -130,6 +156,7 @@ public class App {
 
     public void listAny() {
         int choice = 0;
+
         while (choice != 99) {
             System.out.println("\nAll Items");
             System.out.println("-----------");
@@ -139,6 +166,8 @@ public class App {
             System.out.println("3. Magazines Only");
             System.out.println("4. DiscMags Only");
             System.out.println("5. Tickets Only");
+            System.out.println("6. Gaming Mice Only");
+            System.out.println("7. Gaming Keyboards Only");
             System.out.println("99. Exit");
 
             try {
@@ -152,13 +181,32 @@ public class App {
             if (choice == 99) return;
 
             Class<? extends ProductEntity> filterClass = null;
-            switch(choice) {
-                case 1: filterClass = ProductEntity.class; break;
-                case 2: filterClass = BookEntity.class; break;
-                case 3: filterClass = MagazineEntity.class; break;
-                case 4: filterClass = DiscMagEntity.class; break;
-                case 5: filterClass = TicketEntity.class; break;
-                default: System.out.println("Invalid selection."); continue;
+
+            switch (choice) {
+                case 1:
+                    filterClass = ProductEntity.class;
+                    break;
+                case 2:
+                    filterClass = BookEntity.class;
+                    break;
+                case 3:
+                    filterClass = MagazineEntity.class;
+                    break;
+                case 4:
+                    filterClass = DiscMagEntity.class;
+                    break;
+                case 5:
+                    filterClass = TicketEntity.class;
+                    break;
+                case 6:
+                    filterClass = GamingMouseEntity.class;
+                    break;
+                case 7:
+                    filterClass = GamingKeyboardEntity.class;
+                    break;
+                default:
+                    System.out.println("Invalid selection.");
+                    continue;
             }
 
             String jpql = "SELECT p FROM ProductEntity p";
@@ -166,9 +214,10 @@ public class App {
                 jpql = "SELECT p FROM " + filterClass.getSimpleName() + " p";
             }
 
-            List<? extends ProductEntity> dbEntities = em.createQuery(jpql, filterClass).getResultList();
+            List<? extends ProductEntity> dbEntities =
+                    em.createQuery(jpql, filterClass).getResultList();
+
             for (ProductEntity entity : dbEntities) {
-                // Prevent DiscMags showing up in pure Magazine listings
                 if (filterClass == MagazineEntity.class && entity instanceof DiscMagEntity) {
                     continue;
                 }
@@ -186,11 +235,18 @@ public class App {
             System.out.println(Magazine.fromEntity((MagazineEntity) entity));
         } else if (entity instanceof TicketEntity) {
             System.out.println(Ticket.fromEntity((TicketEntity) entity));
+        } else if (entity instanceof GamingMouseEntity) {
+            System.out.println(GamingMouse.fromEntity((GamingMouseEntity) entity));
+        } else if (entity instanceof GamingKeyboardEntity) {
+            System.out.println(GamingKeyboard.fromEntity((GamingKeyboardEntity) entity));
         }
     }
 
     public void editItem() {
-        List<ProductEntity> entities = em.createQuery("SELECT p FROM ProductEntity p", ProductEntity.class).getResultList();
+        List<ProductEntity> entities =
+                em.createQuery("SELECT p FROM ProductEntity p", ProductEntity.class)
+                        .getResultList();
+
         if (entities.isEmpty()) {
             System.out.println("No records found to edit.");
             return;
@@ -204,8 +260,10 @@ public class App {
 
         try {
             int idx = Integer.parseInt(input.nextLine().trim());
+
             if (idx >= 0 && idx < entities.size()) {
                 ProductEntity entity = entities.get(idx);
+
                 em.getTransaction().begin();
 
                 if (entity instanceof BookEntity) {
@@ -222,6 +280,14 @@ public class App {
                     em.merge(dto.toEntity());
                 } else if (entity instanceof TicketEntity) {
                     Ticket dto = Ticket.fromEntity((TicketEntity) entity);
+                    dto.edit(this.input);
+                    em.merge(dto.toEntity());
+                } else if (entity instanceof GamingMouseEntity) {
+                    GamingMouse dto = GamingMouse.fromEntity((GamingMouseEntity) entity);
+                    dto.edit(this.input);
+                    em.merge(dto.toEntity());
+                } else if (entity instanceof GamingKeyboardEntity) {
+                    GamingKeyboard dto = GamingKeyboard.fromEntity((GamingKeyboardEntity) entity);
                     dto.edit(this.input);
                     em.merge(dto.toEntity());
                 }
@@ -238,7 +304,10 @@ public class App {
     }
 
     public void deleteItem() {
-        List<ProductEntity> entities = em.createQuery("SELECT p FROM ProductEntity p", ProductEntity.class).getResultList();
+        List<ProductEntity> entities =
+                em.createQuery("SELECT p FROM ProductEntity p", ProductEntity.class)
+                        .getResultList();
+
         if (entities.isEmpty()) {
             System.out.println("No records found to delete.");
             return;
@@ -252,11 +321,14 @@ public class App {
 
         try {
             int idx = Integer.parseInt(input.nextLine().trim());
+
             if (idx >= 0 && idx < entities.size()) {
                 ProductEntity entity = entities.get(idx);
+
                 em.getTransaction().begin();
                 em.remove(entity);
                 em.getTransaction().commit();
+
                 System.out.println("Successfully deleted from DB via JPA.");
             }
         } catch (Exception e) {
@@ -268,7 +340,10 @@ public class App {
     }
 
     public void sellItem() {
-        List<ProductEntity> entities = em.createQuery("SELECT p FROM ProductEntity p", ProductEntity.class).getResultList();
+        List<ProductEntity> entities =
+                em.createQuery("SELECT p FROM ProductEntity p", ProductEntity.class)
+                        .getResultList();
+
         if (entities.isEmpty()) {
             System.out.println("No inventory found to sell.");
             return;
@@ -282,14 +357,16 @@ public class App {
 
         try {
             int idx = Integer.parseInt(input.nextLine().trim());
+
             if (idx >= 0 && idx < entities.size()) {
                 ProductEntity entity = entities.get(idx);
+
                 em.getTransaction().begin();
 
                 if (entity instanceof BookEntity) {
                     Book dto = Book.fromEntity((BookEntity) entity);
                     cashTill.sellItem(dto);
-                    em.merge(dto.toEntity()); // Decremented stock persisted
+                    em.merge(dto.toEntity());
                 } else if (entity instanceof DiscMagEntity) {
                     DiscMag dto = DiscMag.fromEntity((DiscMagEntity) entity);
                     cashTill.sellItem(dto);
@@ -300,6 +377,14 @@ public class App {
                     em.merge(dto.toEntity());
                 } else if (entity instanceof TicketEntity) {
                     Ticket dto = Ticket.fromEntity((TicketEntity) entity);
+                    cashTill.sellItem(dto);
+                    em.merge(dto.toEntity());
+                } else if (entity instanceof GamingMouseEntity) {
+                    GamingMouse dto = GamingMouse.fromEntity((GamingMouseEntity) entity);
+                    cashTill.sellItem(dto);
+                    em.merge(dto.toEntity());
+                } else if (entity instanceof GamingKeyboardEntity) {
+                    GamingKeyboard dto = GamingKeyboard.fromEntity((GamingKeyboardEntity) entity);
                     cashTill.sellItem(dto);
                     em.merge(dto.toEntity());
                 }
@@ -315,7 +400,11 @@ public class App {
     }
 
     public void populate() {
-        long count = em.createQuery("SELECT COUNT(p) FROM ProductEntity p", Long.class).getSingleResult();
+        long count = em.createQuery(
+                "SELECT COUNT(p) FROM ProductEntity p",
+                Long.class
+        ).getSingleResult();
+
         if (count > 0) {
             System.out.println("Database already seeded. Safe boot complete.");
             return;
@@ -323,20 +412,20 @@ public class App {
 
         System.out.println("Seeding database via JPA Hibernate mapping...");
         Faker faker = new Faker();
+
         em.getTransaction().begin();
 
         try {
             for (int i = 0; i < 2; i++) {
-                // Book
                 BookEntity b = new BookEntity(
                         faker.book().title(),
                         faker.number().randomDouble(2, 10, 50),
                         faker.number().numberBetween(1, 20),
                         faker.book().author()
                 );
+                b.setProductId(UUID.randomUUID().toString());
                 em.persist(b);
 
-                // Magazine
                 MagazineEntity m = new MagazineEntity(
                         faker.book().title() + " Monthly",
                         faker.number().randomDouble(2, 5, 15),
@@ -344,9 +433,9 @@ public class App {
                         faker.number().numberBetween(100, 500),
                         faker.date().past(30, TimeUnit.DAYS)
                 );
+                m.setProductId(UUID.randomUUID().toString());
                 em.persist(m);
 
-                // DiscMag
                 DiscMagEntity dm = new DiscMagEntity(
                         "Tech Disc: " + faker.app().name(),
                         faker.number().randomDouble(2, 10, 25),
@@ -355,14 +444,32 @@ public class App {
                         faker.date().past(60, TimeUnit.DAYS),
                         faker.bool().bool()
                 );
+                dm.setProductId(UUID.randomUUID().toString());
                 em.persist(dm);
 
-                // Ticket
                 TicketEntity t = new TicketEntity();
                 t.setDescription("Concert: " + faker.rockBand().name());
                 t.setPrice(faker.number().randomDouble(2, 50, 150));
+                t.setProductId(UUID.randomUUID().toString());
                 em.persist(t);
+
+                GamingMouseEntity mouse = new GamingMouseEntity(
+                        faker.company().name(),
+                        faker.number().randomDouble(2, 40, 150),
+                        faker.number().numberBetween(4000, 26000)
+                );
+                mouse.setProductId(UUID.randomUUID().toString());
+                em.persist(mouse);
+
+                GamingKeyboardEntity keyboard = new GamingKeyboardEntity(
+                        faker.company().name(),
+                        faker.number().randomDouble(2, 60, 250),
+                        "Mechanical"
+                );
+                keyboard.setProductId(UUID.randomUUID().toString());
+                em.persist(keyboard);
             }
+
             em.getTransaction().commit();
             System.out.println("Seeding complete. Products persisted directly to MySQL disk volume.");
         } catch (Exception e) {
@@ -374,14 +481,13 @@ public class App {
     }
 
     public SaleableItem findItem(SaleableItem item) {
-        // Query all persistent product entities from the database
-        List<ProductEntity> entities = em.createQuery(
-                "SELECT p FROM ProductEntity p", ProductEntity.class).getResultList();
+        List<ProductEntity> entities =
+                em.createQuery("SELECT p FROM ProductEntity p", ProductEntity.class)
+                        .getResultList();
 
         for (ProductEntity entity : entities) {
             SaleableItem pojo = null;
 
-            // Map the entity back to its corresponding POJO/DTO
             if (entity instanceof BookEntity) {
                 pojo = Book.fromEntity((BookEntity) entity);
             } else if (entity instanceof DiscMagEntity) {
@@ -390,13 +496,17 @@ public class App {
                 pojo = Magazine.fromEntity((MagazineEntity) entity);
             } else if (entity instanceof TicketEntity) {
                 pojo = Ticket.fromEntity((TicketEntity) entity);
+            } else if (entity instanceof GamingMouseEntity) {
+                pojo = GamingMouse.fromEntity((GamingMouseEntity) entity);
+            } else if (entity instanceof GamingKeyboardEntity) {
+                pojo = GamingKeyboard.fromEntity((GamingKeyboardEntity) entity);
             }
 
-            // Check logically if this database item matches the expected item
             if (pojo != null && pojo.equals(item)) {
                 return pojo;
             }
         }
+
         return null;
     }
 
